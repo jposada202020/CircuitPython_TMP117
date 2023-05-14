@@ -1,4 +1,5 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020 Bryan Siepert for Adafruit Industries, 2023 Jose D. Montoya
+# SPDX-FileCopyrightText: Copyright (c) 2020 Bryan Siepert for Adafruit Industries
+# SPDX-FileCopyrightText: Copyright (c) 2023 Jose D. Montoya
 #
 # SPDX-License-Identifier: MIT
 """
@@ -141,7 +142,6 @@ class TMP117:
         configuration"""
         # Datasheet specifies that reset will finish in 2ms however by default the first
         # conversion will be averaged 8x and take 1s
-        # TODO: sleep depending on current averaging config
         self._set_mode_and_wait_for_measurement(_CONTINUOUS_CONVERSION_MODE)  # one shot
         time.sleep(1)
 
