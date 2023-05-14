@@ -23,7 +23,17 @@ Introduction
     :target: https://github.com/psf/black
     :alt: Code Style: Black
 
-CircuitPython TMP117 Temperature Sensor Low Memory driver
+
+CircuitPython TMP117 Temperature Sensor Low Memory driver. This is refactor to work with a QT Py M0.
+See issue https://github.com/adafruit/Adafruit_CircuitPython_TMP117/issues/11
+
+The work here was covered under PR#15
+on the Adafruit_TMP117 Library https://github.com/adafruit/Adafruit_CircuitPython_TMP117/pull/15
+
+There were small changes after the PR, those are included here too.
+
+
+
 
 
 Dependencies
@@ -35,10 +45,6 @@ This driver depends on:
 * `Register <https://github.com/adafruit/Adafruit_CircuitPython_Register>`_
 
 Please ensure all dependencies are available on the CircuitPython filesystem.
-This is easily achieved by downloading
-`the Community Bundle library and driver bundle <https://circuitpython.org/libraries>`_
-or individual libraries can be installed using
-`circup <https://github.com/adafruit/circup>`_.
 
 
 Installing from PyPI
@@ -67,42 +73,8 @@ To install in a virtual environment in your current project:
     source .env/bin/activate
     pip3 install circuitpython-tmp117
 
-Installing to a Connected CircuitPython Device with Circup
-==========================================================
-
-Make sure that you have ``circup`` installed in your Python environment.
-Install it with the following command if necessary:
-
-.. code-block:: shell
-
-    pip3 install circup
-
-With ``circup`` installed and your CircuitPython device connected use the
-following command to install:
-
-.. code-block:: shell
-
-    circup install tmp117
-
-Or the following command to update an existing version:
-
-.. code-block:: shell
-
-    circup update
 
 Usage Example
 =============
 
 Take a look at the examples directory
-
-Documentation
-=============
-API documentation for this library can be found on `Read the Docs <https://circuitpython-tmp117.readthedocs.io/>`_.
-
-
-Contributing
-============
-
-Contributions are welcome! Please read our `Code of Conduct
-<https://github.com/jposada202020/CircuitPython_/blob/HEAD/CODE_OF_CONDUCT.md>`_
-before contributing to help this project stay welcoming.
