@@ -1,14 +1,14 @@
-# SPDX-FileCopyrightText: 2020 Bryan Siepert, written for Adafruit Industries
+# SPDX-FileCopyrightText: 2023 Jose D. Montoya
 #
 # SPDX-License-Identifier: Unlicense
 import time
 import board
-import adafruit_tmp117
+import tmp117
 
 i2c = board.I2C()  # uses board.SCL and board.SDA
 # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
 
-tmp117 = adafruit_tmp117.TMP117(i2c)
+tmp117 = tmp117.TMP117(i2c)
 
 tmp117.high_limit = 25
 tmp117.low_limit = 10

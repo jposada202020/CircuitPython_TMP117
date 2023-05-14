@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 """
-`adafruit_tmp117`
+`tmp117`
 ================================================================================
 
 CircuitPython library for the TI TMP117 Temperature sensor
@@ -84,6 +84,7 @@ AVERAGE_1X = const(0b00)
 AVERAGE_8X = const(0b01)
 AVERAGE_32X = const(0b10)
 AVERAGE_64X = const(0b11)
+averaged_measurements_values = (AVERAGE_1X, AVERAGE_8X, AVERAGE_32X, AVERAGE_64X)
 
 DELAY_0_0015_S = const(0b000)  # 0.00155
 DELAY_0_125_S = const(0b01)  # 0.125
@@ -94,9 +95,9 @@ DELAY_4_S = const(0b101)  # 4
 DELAY_8_S = const(0b110)  # 8
 DELAY_16_S = const(0b111)  # 16
 
-MEASUREMENTMODE_CONTINUOUS = const(0b00)
-MEASUREMENTMODE_ONE_SHOT = const(0b11)
-MEASUREMENTMODE_SHUTDOWN = const(0b01)
+CONTINUOUS_CONVERSION_MODE = const(0b00)  # Continuous Conversion Mode
+ONE_SHOT_MODE = const(0b11)  # One Shot Conversion Mode
+SHUTDOWN_MODE = const(0b01)  # Shutdown Conversion Mode
 
 AlertStatus = namedtuple("AlertStatus", ["high_alert", "low_alert"])
 
@@ -118,52 +119,58 @@ class TMP117:
     _raw_measurement_delay = RWBits(3, _CONFIGURATION, 7, 2, False)
     _raw_averaged_measurements = RWBits(2, _CONFIGURATION, 5, 2, False)
 
+    _data_ready = RWBit(_CONFIGURATION, 13, 2, False)
+
     _raw_alert_mode = RWBit(_CONFIGURATION, 4, 2, False)  # T/nA bits in the datasheet
     _int_active_high = RWBit(_CONFIGURATION, 3, 2, False)
     _data_ready_int_en = RWBit(_CONFIGURATION, 2, 2, False)
     _soft_reset = RWBit(_CONFIGURATION, 1, 2, False)
 
-    def __init__(self, i2c_bus: I2C, address: int = _I2C_ADDR):
+    _avg_3 = {0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 4, 6: 8, 7: 16}
+    _avg_2 = {0: 0.5, 1: 0.5, 2: 0.5, 3: 0.5, 4: 1, 5: 4, 6: 8, 7: 16}
+    _avg_1 = {0: 0.125, 1: 0.125, 2: 0.25, 3: 0.5, 4: 1, 5: 4, 6: 8, 7: 16}
+    _avg_0 = {0: 0.0155, 1: 0.125, 2: 0.25, 3: 0.5, 4: 1, 5: 4, 6: 8, 7: 16}
+    _averaging_modes = {0: _avg_0, 1: _avg_1, 2: _avg_2, 3: _avg_3}
+
+    def __init__(self, i2c_bus: I2C, address: int = _I2C_ADDR) -> None:
 
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
         if self._part_id != _DEVICE_ID_VALUE:
             raise AttributeError("Cannot find a TMP117")
-        # currently set when `alert_status` is read, but not exposed
-        self.reset()
-        self.initialize()
-
-    def reset(self):
-        """Reset the sensor to its unconfigured power-on state"""
         self._soft_reset = True
-
-    def initialize(self):
-        """Configure the sensor with sensible defaults. `initialize` is primarily provided to be
-        called after `reset`, however it can also be used to easily set the sensor to a known
-        configuration"""
-        # Datasheet specifies that reset will finish in 2ms however by default the first
-        # conversion will be averaged 8x and take 1s
-        self._set_mode_and_wait_for_measurement(_CONTINUOUS_CONVERSION_MODE)  # one shot
-        time.sleep(1)
+        # Following a reset, the temperature register reads –256 °C until the first
+        # conversion, including averaging, is complete. So we sleep for that amount of time
+        time.sleep(
+            self._averaging_modes[self._raw_averaged_measurements][
+                self._raw_measurement_delay
+            ]
+        )
+        self._mode = CONTINUOUS_CONVERSION_MODE
+        while not self._data_ready:
+            time.sleep(0.001)
+        _ = self._raw_temperature * _TMP117_RESOLUTION
 
     @property
-    def temperature(self):
-        """The current measured temperature in degrees Celsius"""
+    def temperature(self) -> float:
+        """The current measured temperature in Celsius"""
 
         return self._raw_temperature * _TMP117_RESOLUTION
 
     @property
-    def temperature_offset(self):
+    def temperature_offset(self) -> float:
         """User defined temperature offset to be added to measurements from `temperature`
+        In order the see the new change in the temperature we need for the data to be ready.
+        There is a time delay calculated according to current configuration.
 
         .. code-block::python
 
             import time
             import board
-            import adafruit_tmp117
+            import tmp117
 
             i2c = board.I2C()  # uses board.SCL and board.SDA
 
-            tmp117 = adafruit_tmp117.TMP117(i2c)
+            tmp117 = tmp117.TMP117(i2c)
 
             print("Temperature without offset: %.2f degrees C" % tmp117.temperature)
             tmp117.temperature_offset = 10.0
@@ -175,31 +182,29 @@ class TMP117:
         return self._raw_temperature_offset * _TMP117_RESOLUTION
 
     @temperature_offset.setter
-    def temperature_offset(self, value: float):
+    def temperature_offset(self, value: float) -> None:
         self._raw_temperature_offset = self._scaled_limit(value)
 
     @property
-    def high_limit(self):
-        """The high temperature limit in degrees Celsius. When the measured temperature exceeds this
-        value, the `high_alert` attribute of the `alert_status` property will be True. See the
-        documentation for `alert_status` for more information"""
+    def high_limit(self) -> float:
+        """The high temperature limit in Celsius. When the measured temperature exceeds this
+        value, the `high_alert` attribute of the `alert_status` property will be True."""
 
         return self._raw_high_limit * _TMP117_RESOLUTION
 
     @high_limit.setter
-    def high_limit(self, value: float):
+    def high_limit(self, value: float) -> None:
         self._raw_high_limit = self._scaled_limit(value)
 
     @property
-    def low_limit(self):
-        """The low  temperature limit in degrees Celsius. When the measured temperature goes below
-        this value, the `low_alert` attribute of the `alert_status` property will be True. See the
-        documentation for `alert_status` for more information"""
+    def low_limit(self) -> float:
+        """The low  temperature limit in Celsius. When the measured temperature goes below
+        this value, the `low_alert` attribute of the `alert_status` property will be True."""
 
         return self._raw_low_limit * _TMP117_RESOLUTION
 
     @low_limit.setter
-    def low_limit(self, value: float):
+    def low_limit(self, value: float) -> None:
         self._raw_low_limit = self._scaled_limit(value)
 
     @property
@@ -210,10 +215,10 @@ class TMP117:
         .. code-block :: python
 
             import board
-            import adafruit_tmp117
+            import tmp117
             i2c = board.I2C()  # uses board.SCL and board.SDA
 
-            tmp117 = adafruit_tmp117.TMP117(i2c)
+            tmp117 = tmp117.TMP117(i2c)
 
             tmp117.high_limit = 25
             tmp117.low_limit = 10
@@ -222,8 +227,8 @@ class TMP117:
             print("Low limit", tmp117.low_limit)
 
             # Try changing `alert_mode`  to see how it modifies the behavior of the alerts.
-            # tmp117.alert_mode = adafruit_tmp117.ALERT_WINDOW  #default
-            # tmp117.alert_mode = adafruit_tmp117.HYSTERESIS
+            # tmp117.alert_mode = tmp117.ALERT_WINDOW  #default
+            # tmp117.alert_mode = tmp117.HYSTERESIS
 
             print("Alert mode:", tmp117.alert_mode)
             print("")
@@ -242,57 +247,48 @@ class TMP117:
 
     @property
     def averaged_measurements(self):
-        """The number of measurements that are taken and averaged before updating the temperature
-        measurement register. A larger number will reduce measurement noise but may also affect
-        the rate at which measurements are updated, depending on the value of `measurement_delay`
+        """
+        Users can configure the device to report the average of multiple temperature
+        conversions with the AVG[1:0] bits to reduce noise in the conversion results.
+        When the TMP117 is configured to perform averaging with AVG set to 01, the device executes
+        the configured number of conversions to eight. The device accumulates those conversion
+        results and reports the average of all the collected results at the end of the process.
 
-        Note that each averaged measurement takes 15.5ms which means that larger numbers of averaged
-        measurements may make the delay between new reported measurements to exceed the delay set
-        by `measurement_delay`
+        +----------------------------------------+-------------------------+
+        | Mode                                   | Value                   |
+        +========================================+=========================+
+        | :py:const:`tmp117.AVERAGE_1X`          | :py:const:`0b00`        |
+        +----------------------------------------+-------------------------+
+        | :py:const:`tmp117.AVERAGE_8X`          | :py:const:`0b01`        |
+        +----------------------------------------+-------------------------+
+        | :py:const:`tmp117.AVERAGE_32X`         | :py:const:`0b10`        |
+        +----------------------------------------+-------------------------+
+        | :py:const:`tmp117.AVERAGE_64X`         | :py:const:`0b11`        |
+        +----------------------------------------+-------------------------+
 
         .. code-block::python3
 
             import time
             import board
-            import adafruit_tmp117
+            import tmp117
 
             i2c = board.I2C()  # uses board.SCL and board.SDA
 
-            tmp117 = adafruit_tmp117.TMP117(i2c)
+            tmp117 = tmp117.TMP117(i2c)
 
-        In order to print information in a nicer way we create a dictionary with the
-        sensor information for the averaged measurements.
-
-        .. code-block::python3
-
-            Average_Measure = {1: "AVERAGE_1X", 2: "AVERAGE_8X", 3: "AVERAGE_32X", 4: "AVERAGE_64X"}
-
-        We print the information for the Temperature sensor
-
-        .. code-block::python3
-
-            # uncomment different options below to see how it affects the reported temperature
-            # tmp117.averaged_measurements = adafruit_tmp117.AVERAGE_1X
-            # tmp117.averaged_measurements = adafruit_tmp117.AVERAGE_8X
-            # tmp117.averaged_measurements = adafruit_tmp117.AVERAGE_32X
-            # tmp117.averaged_measurements = adafruit_tmp117.AVERAGE_64X
-
-            print(
-                "Number of averaged samples per measurement:",
-                Average_Measure[tmp117.averaged_measurements],
+            print("Number of averaged samples per measurement:",
+                tmp117.averaged_measurements
             )
-            print("")
 
-            while True:
-                print("Temperature:", tmp117.temperature)
-                time.sleep(0.1)
 
         """
-        return self._raw_averaged_measurements
+        average_measure = ("AVERAGE_1X", "AVERAGE_8X", "AVERAGE_32X", "AVERAGE_64X")
+
+        return average_measure[self._raw_averaged_measurements]
 
     @averaged_measurements.setter
     def averaged_measurements(self, value: int):
-        if value not in [0, 1, 2, 3]:
+        if value not in (0, 1, 2, 3):
             raise ValueError("averaged_measurements must be set to 0, 1, 2 or 3")
         self._raw_averaged_measurements = value
 
@@ -302,46 +298,45 @@ class TMP117:
         """Sets the measurement mode, specifying the behavior of how often measurements are taken.
                 `measurement_mode` must be one of:
 
-        +----------------------------------------+------------------------------------------------------+
-        | Mode                                   | Behavior                                             |
-        +========================================+======================================================+
-        | :py:const:`MEASUREMENTMODE_CONTINUOUS` | Measurements are made at the interval determined by  |
-        |                                        |                                                      |
-        |                                        | `averaged_measurements` and `measurement_delay`.     |
-        |                                        |                                                      |
-        |                                        | `temperature` returns the most recent measurement    |
-        +----------------------------------------+------------------------------------------------------+
-        | :py:const:`MEASUREMENTMODE_ONE_SHOT`   | Take a single measurement with the current number of |
-        |                                        |                                                      |
-        |                                        | `averaged_measurements` and switch to                |
-        |                                        | :py:const:`SHUTDOWN` when                            |
-        |                                        |                                                      |
-        |                                        | finished.                                            |
-        |                                        |                                                      |
-        |                                        |                                                      |
-        |                                        | `temperature` will return the new measurement until  |
-        |                                        |                                                      |
-        |                                        | `measurement_mode` is set to :py:const:`CONTINUOUS`  |
-        |                                        | or :py:const:`ONE_SHOT` is                           |
-        |                                        |                                                      |
-        |                                        | set again.                                           |
-        +----------------------------------------+------------------------------------------------------+
-        | :py:const:`MEASUREMENTMODE_SHUTDOWN`   | The sensor is put into a low power state and no new  |
-        |                                        |                                                      |
-        |                                        | measurements are taken.                              |
-        |                                        |                                                      |
-        |                                        | `temperature` will return the last measurement until |
-        |                                        |                                                      |
-        |                                        | a new `measurement_mode` is selected.                |
-        +----------------------------------------+------------------------------------------------------+
+        When we use the sensor in One shot mode, the sensor will take the average_measurement value
+        into account. However, this measure is done with the formula (15.5 ms × average_time), so in
+        normal operation average_time will be 8, therefore time for measure is 124 ms.
+        (See datasheet. 7.3.2 Averaging for more information). If we use 64, time will be 15.5 x 65 = 992 ms,
+        the standby time will decrease, but the measure is still under 1 Hz cycle.
+        (See Fig 7.2 on the datasheet)
+
+        +-----------------------------------------------+------------------------------------------------------+
+        | Mode                                          | Behavior                                             |
+        +===============================================+======================================================+
+        | :py:const:`tmp117.CONTINUOUS_CONVERSION_MODE` | Measurements are made at the interval determined by  |
+        |                                               | averaging_measurements.                              |
+        |                                               | `temperature` returns the most recent measurement    |
+        +-----------------------------------------------+------------------------------------------------------+
+        | :py:const:`tmp117.ONE_SHOT`                   | Take a single measurement with the current number of |
+        |                                               | averaging_measurements and switch to                 |
+        |                                               | :py:const:`SHUTDOWN` when finished.                  |
+        |                                               | `temperature` will return the new measurement until  |
+        |                                               | `measurement_mode` is set to :py:const:`CONTINUOUS`  |
+        |                                               | or :py:const:`ONE_SHOT` is  set again.               |
+        +-----------------------------------------------+------------------------------------------------------+
+        | :py:const:`tmp117.SHUTDOWN`                   | The sensor is put into a low power state and no new  |
+        |                                               | measurements are taken.                              |
+        |                                               | `temperature` will return the last measurement until |
+        |                                               | a new `measurement_mode` is selected.                |
+        +-----------------------------------------------+------------------------------------------------------+
 
         """
         # pylint: enable=line-too-long
-        return self._mode
+        sensor_modes = {
+            0: "CONTINUOUS_CONVERSION_MODE",
+            1: "SHUTDOWN_MODE",
+            3: "ONE_SHOT_MODE",
+        }
+        return sensor_modes[self._mode]
 
     @measurement_mode.setter
     def measurement_mode(self, value: int) -> None:
-        self._set_mode_and_wait_for_measurement(value)
+        self._mode = value
 
     @property
     def measurement_delay(self):
@@ -350,15 +345,36 @@ class TMP117:
         current setting off `averaged_measurements` which determines the minimum
         time needed between reported measurements.
 
+
+        +-----------------------------------+-------------------+
+        | Mode                              | Value             |
+        +===================================+===================+
+        | :py:const:`tmp117.DELAY_0_0015_S` | :py:const:`0b000` |
+        +-----------------------------------+-------------------+
+        | :py:const:`tmp117.DELAY_0_125_S`  | :py:const:`0b01`  |
+        +-----------------------------------+-------------------+
+        | :py:const:`tmp117.DELAY_0_250_S`  | :py:const:`0b010` |
+        +-----------------------------------+-------------------+
+        | :py:const:`tmp117.DELAY_0_500_S`  | :py:const:`0b011` |
+        +-----------------------------------+-------------------+
+        | :py:const:`tmp117.DELAY_1_S`      | :py:const:`0b100` |
+        +-----------------------------------+-------------------+
+        | :py:const:`tmp117.DELAY_4_S`      | :py:const:`0b101` |
+        +-----------------------------------+-------------------+
+        | :py:const:`tmp117.DELAY_8_S`      | :py:const:`0b110` |
+        +-----------------------------------+-------------------+
+        | :py:const:`tmp117.DELAY_16_S`     | :py:const:`0b111` |
+        +-----------------------------------+-------------------+
+
         .. code-block::python
 
             import time
             import board
-            import adafruit_tmp117
+            import tmp117
 
             ii2c = board.I2C()  # uses board.SCL and board.SDA
 
-            tmp117 = adafruit_tmp117.TMP117(i2c)
+            tmp117 = mp117.TMP117(i2c)
 
         In order to print information in a nicer way, we create a dictionary with the
         sensor information for the measurement delay.
@@ -382,23 +398,8 @@ class TMP117:
 
             # uncomment different options below to see how it affects the reported temperature
 
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_0_0015_S
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_0_125_S
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_0_250_S
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_0_500_S
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_1_S
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_4_S
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_8_S
-            # tmp117.measurement_delay = adafruit_tmp117.DELAY_16_S
-
             print("Minimum time between measurements:",
             Delay_times[tmp117.measurement_delay])
-
-            print("")
-
-            while True:
-                print("Temperature:", tmp117.temperature)
-                time.sleep(0.01)
 
         """
 
@@ -406,7 +407,7 @@ class TMP117:
 
     @measurement_delay.setter
     def measurement_delay(self, value: int) -> None:
-        if value not in [0, 1, 2, 3, 4, 5, 6, 7]:
+        if value not in (0, 1, 2, 3, 4, 5, 6, 7):
             raise ValueError(
                 "averaged_measurements must be set to 0, 1, 2, 3, 4, 5, 6, 7"
             )
@@ -436,9 +437,22 @@ class TMP117:
         `False` when the measured temperature goes below `low_limit`. In this mode, the `low_limit`
         property of `alert_status` will not be set.
 
-        The default is :py:const:`ALERT_WINDOW`"""
+        The default is :py:const:`ALERT_WINDOW`
 
-        return self._raw_alert_mode
+        +----------------------------------------+-------------------------+
+        | Mode                                   | Value                   |
+        +========================================+=========================+
+        | :py:const:`tmp117.ALERT_WINDOW`        | :py:const:`0b0`         |
+        +----------------------------------------+-------------------------+
+        | :py:const:`tmp117.ALERT_HYSTERESIS`    | :py:const:`0b1`         |
+        +----------------------------------------+-------------------------+
+
+
+        """
+
+        alert_modes = ("ALERT_WINDOW", "ALERT_HYSTERESIS")
+
+        return alert_modes[self._raw_alert_mode]
 
     @alert_mode.setter
     def alert_mode(self, value: Literal[ALERT_WINDOW, ALERT_HYSTERESIS]):
@@ -504,6 +518,10 @@ class TMP117:
     # pylint: disable=no-self-use
     @staticmethod
     def _scaled_limit(value: float) -> int:
-        if value > 256 or value < -256:
+        """Validates for values to be in the range of :const:`-256` and :const:`255`,
+        then return the value divided by the :const:`_TMP117_RESOLUTION`
+        """
+
+        if value not in range(-256, 255):
             raise ValueError("value must be from 255 to -256")
         return int(value / _TMP117_RESOLUTION)

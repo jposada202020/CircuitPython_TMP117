@@ -16,14 +16,13 @@ Set high and low temperature limits and be alerted when they are surpassed.
     :caption: examples/tmp117_limits_test.py
     :linenos:
 
-Measurement averaging and rate
-------------------------------
+Measurement delay settings
+---------------------------
 
-Adjust the number of samples averaged for every reported temperature, and adjust the time beween new
-measurement reports
+Example showing the Measurement delay setting
 
-.. literalinclude:: ../examples/tmp117_rate_and_averaging_test.py
-    :caption: examples/tmp117_rate_and_averaging_test.py
+.. literalinclude:: ../examples/tmp117_measurement_delay.py
+    :caption: examples/tmp117_measurement_delay.py
     :linenos:
 
 Temperature offset
@@ -36,11 +35,11 @@ sensor's environment
     :caption: examples/tmp117_offset_test.py
     :linenos:
 
-Single Measurement Test
------------------------
+Averaged measurements settings
+-------------------------------
 
-Take different sample number and average to give a single temperature measure
+Example showing the Averaged measurements setting
 
-.. literalinclude:: ../examples/tmp117_single_measurement_test.py
-    :caption: examples/tmp117_single_measurement_test.py
+.. literalinclude:: ../examples/tmp117_averaged_measurements.py
+    :caption: examples/tmp117_averaged_measurements.py
     :linenos:
