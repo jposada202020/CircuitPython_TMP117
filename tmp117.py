@@ -133,7 +133,6 @@ class TMP117:
     _averaging_modes = {0: _avg_0, 1: _avg_1, 2: _avg_2, 3: _avg_3}
 
     def __init__(self, i2c_bus: I2C, address: int = _I2C_ADDR) -> None:
-
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
         if self._part_id != _DEVICE_ID_VALUE:
             raise AttributeError("Cannot find a TMP117")
@@ -188,7 +187,8 @@ class TMP117:
     @property
     def high_limit(self) -> float:
         """The high temperature limit in Celsius. When the measured temperature exceeds this
-        value, the `high_alert` attribute of the `alert_status` property will be True."""
+        value, the `high_alert` attribute of the `alert_status` property will be True.
+        """
 
         return self._raw_high_limit * _TMP117_RESOLUTION
 
@@ -199,7 +199,8 @@ class TMP117:
     @property
     def low_limit(self) -> float:
         """The low  temperature limit in Celsius. When the measured temperature goes below
-        this value, the `low_alert` attribute of the `alert_status` property will be True."""
+        this value, the `low_alert` attribute of the `alert_status` property will be True.
+        """
 
         return self._raw_low_limit * _TMP117_RESOLUTION
 
@@ -494,7 +495,6 @@ class TMP117:
         return combined_id
 
     def _set_mode_and_wait_for_measurement(self, mode: int) -> float:
-
         self._mode = mode
         # poll for data ready
         while not self._read_status()[2]:

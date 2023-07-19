@@ -15,7 +15,7 @@ while True:
     for averaged_measurements in tmp117.averaged_measurements_values:
         print("Current Averaged measurements setting: ", tmp.averaged_measurements)
         for _ in range(10):
-            temp = tmp.temperature
-            print("Temperature: {:.2f}C".format(temp))
+            print(f"Temperature: {tmp.temperature:.2f}°C")
+            print()
             time.sleep(0.5)
         tmp.averaged_measurements = averaged_measurements

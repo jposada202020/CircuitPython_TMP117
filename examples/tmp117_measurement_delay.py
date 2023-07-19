@@ -27,7 +27,7 @@ while True:
     for measurement_delay in range(8):
         print("Current Measurement delay setting: ", delay_times[tmp.measurement_delay])
         for _ in range(10):
-            temp = tmp.temperature
-            print("Temperature: {:.2f}C".format(temp))
+            print(f"Temperature: {tmp.temperature:.2f}°C")
+            print()
             time.sleep(0.5)
         tmp.measurement_delay = measurement_delay

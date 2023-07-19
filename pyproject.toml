@@ -20,12 +20,9 @@ authors = [
 urls = {Homepage = "https://github.com/jposada202020/CircuitPython_TMP117"}
 keywords = [
     "sensor",
-    "blinka",
     "circuitpython",
-    "micropython",
     "tmp117",
     "temperature",
-    "tmp117",
     "TMP117",
     "low",
     "memory",

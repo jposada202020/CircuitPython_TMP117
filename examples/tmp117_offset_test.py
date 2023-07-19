@@ -10,10 +10,11 @@ i2c = (
     board.STEMMA_I2C()
 )  # For using the built-in STEMMA QT connector on a microcontroller
 
-tmp117 = tmp117.TMP117(i2c)
+tmp = tmp117.TMP117(i2c)
 
-print("Temperature without offset: %.2f degrees C" % tmp117.temperature)
+print("Temperature without offset: ", tmp.temperature)
 tmp117.temperature_offset = 10.0
 while True:
-    print("Temperature w/ offset: %.2f degrees C" % tmp117.temperature)
+    print(f"Temperature with offset: {tmp.temperature:.2f}°C")
+    print()
     time.sleep(1)
