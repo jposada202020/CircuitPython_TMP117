@@ -1,27 +1,12 @@
-Introduction
-============
+⛔️ DEPRECATED
+===============
 
+This repository is no longer supported, please consider using alternatives.
 
-.. image:: https://readthedocs.org/projects/circuitpython-tmp117/badge/?version=latest
-    :target: https://circuitpython-tmp117.readthedocs.io/
-    :alt: Documentation Status
+.. image:: http://unmaintained.tech/badge.svg
+  :target: http://unmaintained.tech
+  :alt: No Maintenance Intended
 
-
-.. image:: https://img.shields.io/pypi/v/circuitpython-tmp117.svg
-    :alt: latest version on PyPI
-    :target: https://pypi.python.org/pypi/circuitpython-tmp117
-
-.. image:: https://static.pepy.tech/personalized-badge/circuitpython-tmp117?period=total&units=international_system&left_color=grey&right_color=blue&left_text=Pypi%20Downloads
-    :alt: Total PyPI downloads
-    :target: https://pepy.tech/project/circuitpython-tmp117
-
-.. image:: https://github.com/jposada202020/CircuitPython_TMP117/workflows/Build%20CI/badge.svg
-    :target: https://github.com/jposada202020/CircuitPython_TMP117/actions
-    :alt: Build Status
-
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
-    :alt: Code Style: Black
 
 
 CircuitPython TMP117 Temperature Sensor Low Memory driver. This is refactor to work with a QT Py M0.
